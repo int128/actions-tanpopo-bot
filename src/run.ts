@@ -64,6 +64,13 @@ const processIssueComment = async (event: IssueCommentEditedEvent, octokit: Octo
     core.info(`Processing the repository: ${repository}`)
     await processRepository(repository, octokit, context)
   }
+
+  await octokit.issues.updateComment({
+    owner: event.repository.owner.login,
+    repo: event.repository.name,
+    comment_id: event.comment.id,
+    body: event.comment.body.replaceAll('- [x] ', '- [ ] '),
+  })
 }
 
 export const findCheckedRepositories = (comment: string): string[] => {
