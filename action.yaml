@@ -8,6 +8,9 @@ inputs:
   github-app-private-key:
     description: GitHub App private key
     required: true
+  github-app-installation-id:
+    description: GitHub App installation ID
+    required: true
   dry-run:
     description: Set true to dry-run
     required: true

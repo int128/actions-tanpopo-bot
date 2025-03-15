@@ -5,6 +5,7 @@ try {
   await run({
     appId: core.getInput('github-app-id', { required: true }),
     appPrivateKey: core.getInput('github-app-private-key', { required: true }),
+    appInstallationId: core.getInput('github-app-installation-id', { required: true }),
     dryRun: core.getBooleanInput('dry-run'),
   })
 } catch (e) {

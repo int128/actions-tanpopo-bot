@@ -22,6 +22,7 @@ Add the following secrets:
 
 - `BOT_APP_ID` = App ID of the GitHub App
 - `BOT_APP_PRIVATE_KEY` = Private key of the GitHub App
+- `BOT_APP_INSTALLATION_ID` = Installation ID of the GitHub App
 
 Create a workflow.
 
