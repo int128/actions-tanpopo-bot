@@ -1,10 +1,10 @@
+import assert from 'assert'
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as fs from 'fs/promises'
 import { Octokit } from '@octokit/action'
 import { Context, getContext, getOctokit } from './github.js'
 import { IssueCommentEditedEvent, IssuesEditedEvent, IssuesOpenedEvent } from '@octokit/webhooks-types'
-import assert from 'assert'
 
 export const run = async (): Promise<void> => {
   const octokit = getOctokit()
@@ -64,6 +64,13 @@ const processIssueComment = async (event: IssueCommentEditedEvent, octokit: Octo
     core.info(`Processing the repository: ${repository}`)
     await processRepository(repository, octokit, context)
   }
+
+  await octokit.issues.updateComment({
+    owner: event.repository.owner.login,
+    repo: event.repository.name,
+    comment_id: event.comment.id,
+    body: event.comment.body.replaceAll('- [x] ', '- [ ] '),
+  })
 }
 
 export const findCheckedRepositories = (comment: string): string[] => {
@@ -87,8 +94,8 @@ const processRepository = async (repository: string, octokit: Octokit, context: 
     `${context.serverUrl}/${repository}.git`,
   ])
 
-  const { data: authenticated } = await octokit.rest.apps.getAuthenticated()
-  assert(authenticated)
-  await exec.exec('git', ['config', 'user.name', authenticated.name])
-  await exec.exec('git', ['config', 'user.email', `${authenticated.id}+${authenticated.slug}@users.noreply.github.com`])
+  await exec.exec('git', ['config', 'user.name', context.actor])
+  await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`])
+
+  assert(octokit)
 }
