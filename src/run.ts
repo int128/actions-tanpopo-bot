@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import { getContext, getOctokit } from './github.js'
 import { IssuesEditedEvent, IssuesOpenedEvent } from '@octokit/webhooks-types'
-import { Octokit } from '@octokit/rest'
+import { Octokit } from '@octokit/action'
 
 export const run = async (): Promise<void> => {
   const octokit = getOctokit()
