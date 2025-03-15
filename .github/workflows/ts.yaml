@@ -32,10 +32,12 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-      - name: e2e-test
+      - name: Run int128/actions-tanpopo-bot
         uses: ./
         with:
-          name: foo
+          github-app-id: ${{ secrets.BOT_APP_ID }}
+          github-app-private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          dry-run: true
 
   generate:
     runs-on: ubuntu-latest

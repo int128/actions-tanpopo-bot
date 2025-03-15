@@ -1,96 +1,28 @@
-# typescript-action [![ts](https://github.com/int128/typescript-action/actions/workflows/ts.yaml/badge.svg)](https://github.com/int128/typescript-action/actions/workflows/ts.yaml)
+# actions-tanpopo-bot [![ts](https://github.com/int128/actions-tanpopo-bot/actions/workflows/ts.yaml/badge.svg)](https://github.com/int128/actions-tanpopo-bot/actions/workflows/ts.yaml)
 
-This is a template of TypeScript action.
-Inspired from https://github.com/actions/typescript-action.
-
-## Features
-
-- Ready to develop with the minimum configs
-  - Prettier
-  - ESLint
-  - tsconfig
-  - Jest
-- Automated continuous release
-- Keep consistency of generated files
-- Shipped with Renovate config
+This is an action of bot to automate routine tasks.
 
 ## Getting Started
 
-Click `Use this template` to create a repository.
+### Create GitHub App
 
-An initial release `v0.0.0` is automatically created by GitHub Actions.
-You can see the generated files in `dist` directory on the tag.
+Create your GitHub App from [this link](https://github.com/settings/apps/new?webhook_active=false&url=https://github.com/int128/actions-tanpopo-bot&contents=write&pull_requests=write&workflows=write).
+Here are the required permissions:
 
-Then checkout your repository and test it. Node.js is required.
+- Contents: read and write
+- Pull Requests: read and write
+- Workflows: read and write
 
-```console
-$ git clone https://github.com/your/repo.git
+Install the GitHub App to your repositories.
 
-$ pnpm i
-$ pnpm test
-```
+### Create repository and workflow
 
-Create a pull request for a change.
+Create a new repository.
+Add the following secrets:
 
-```console
-$ git checkout -b feature
-$ git commit -m 'Add feature'
-$ gh pr create -fd
-```
+- `BOT_APP_ID` = App ID of the GitHub App
+- `BOT_APP_PRIVATE_KEY` = Private key of the GitHub App
 
-Once you merge a pull request, a new minor release (such as `v0.1.0`) is created.
+Create a workflow.
 
-### Stable release
-
-When you want to create a stable release, change the major version in [release workflow](.github/workflows/release.yaml).
-
-```yaml
-- uses: int128/release-typescript-action@v1
-  with:
-    major-version: 1
-```
-
-Then a new stable release `v1.0.0` is created.
-
-## Specification
-
-To run this action, create a workflow as follows:
-
-```yaml
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: int128/typescript-action@v1
-        with:
-          name: hello
-```
-
-### Inputs
-
-| Name   | Default    | Description   |
-| ------ | ---------- | ------------- |
-| `name` | (required) | example input |
-
-### Outputs
-
-| Name      | Description    |
-| --------- | -------------- |
-| `example` | example output |
-
-## Development
-
-### Release workflow
-
-When a pull request is merged into main branch, a new minor release is created by GitHub Actions.
-See https://github.com/int128/release-typescript-action for details.
-
-### Keep consistency of generated files
-
-If a pull request needs to be fixed by Prettier, an additional commit to fix it will be added by GitHub Actions.
-See https://github.com/int128/update-generated-files-action for details.
-
-### Dependency update
-
-You can enable Renovate to update the dependencies.
-This repository is shipped with the config https://github.com/int128/typescript-action-renovate-config.
+TODO
