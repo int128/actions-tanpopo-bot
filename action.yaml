@@ -2,14 +2,8 @@ name: actions-tanpopo-bot
 description: Bot for automation of routine tasks
 
 inputs:
-  github-app-id:
-    description: GitHub App ID
-    required: true
-  github-app-private-key:
-    description: GitHub App private key
-    required: true
-  github-app-installation-id:
-    description: GitHub App installation ID
+  token:
+    description: GitHub App installation token
     required: true
   dry-run:
     description: Set true to dry-run
