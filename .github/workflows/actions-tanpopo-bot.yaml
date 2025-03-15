@@ -1,9 +1,9 @@
 name: actions-tanpopo-bot
 
 on:
-  issue_comment:
+  issues:
     types:
-      - created
+      - opened
       - edited
   pull_request:
     paths:
@@ -11,6 +11,9 @@ on:
 
 jobs:
   actions-tanpopo-bot:
+    if: |
+      github.event_name == 'issues' &&
+      contains(github.event.issue.labels, '/tanpopo')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -23,3 +26,4 @@ jobs:
         with:
           github-app-id: ${{ secrets.BOT_APP_ID }}
           github-app-private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          github-app-installation-id: ${{ secrets.BOT_APP_INSTALLATION_ID }}
