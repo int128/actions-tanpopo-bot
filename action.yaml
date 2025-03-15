@@ -1,10 +1,17 @@
-name: typescript-action
-description: Template of TypeScript Action
+name: actions-tanpopo-bot
+description: Bot for automation of routine tasks
 
 inputs:
-  name:
-    description: example input
+  github-app-id:
+    description: GitHub App ID
     required: true
+  github-app-private-key:
+    description: GitHub App private key
+    required: true
+  dry-run:
+    description: Set true to dry-run
+    required: true
+    default: false
 
 runs:
   using: 'node20'
