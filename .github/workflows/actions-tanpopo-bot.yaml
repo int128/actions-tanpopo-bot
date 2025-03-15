@@ -11,8 +11,7 @@ on:
 
 jobs:
   actions-tanpopo-bot:
-    if: |
-      github.event_name == 'issues' && contains(github.event.issue.labels, '/tanpopo')
+    if: github.event_name == 'issues' && contains(github.event.issue.labels.*.name, '/tanpopo')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
