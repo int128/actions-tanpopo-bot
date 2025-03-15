@@ -6,10 +6,11 @@ This is an action of bot to automate routine tasks.
 
 ### Create GitHub App
 
-Create your GitHub App from [this link](https://github.com/settings/apps/new?webhook_active=false&url=https://github.com/int128/actions-tanpopo-bot&contents=write&pull_requests=write&workflows=write).
+Create your GitHub App from [this link](https://github.com/settings/apps/new?webhook_active=false&url=https://github.com/int128/actions-tanpopo-bot&contents=write&issues=write&pull_requests=write&workflows=write).
 Here are the required permissions:
 
 - Contents: read and write
+- Issues: read and write
 - Pull Requests: read and write
 - Workflows: read and write
 
