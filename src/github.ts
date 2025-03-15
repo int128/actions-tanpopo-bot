@@ -12,6 +12,7 @@ export type Context = {
     repo: string
   }
   eventName: string
+  actor: string
   serverUrl: string
   payload: WebhookEvent
 }
@@ -21,6 +22,7 @@ export const getContext = async (): Promise<Context> => {
   return {
     repo: getRepo(),
     eventName: getEnv('GITHUB_EVENT_NAME'),
+    actor: getEnv('GITHUB_ACTOR'),
     serverUrl: getEnv('GITHUB_SERVER_URL'),
     payload: JSON.parse(await fs.readFile(getEnv('GITHUB_EVENT_PATH'), 'utf-8')) as WebhookEvent,
   }
