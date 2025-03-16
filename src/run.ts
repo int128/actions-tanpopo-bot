@@ -58,6 +58,15 @@ const processPullRequestReviewComment = async (
   }
 
   const taskFilename = event.comment.path
+
+  await octokit.rest.pulls.createReplyForReviewComment({
+    owner: event.repository.owner.login,
+    repo: event.repository.name,
+    pull_number: event.pull_request.number,
+    comment_id: event.comment.id,
+    body: `Running ${taskFilename} in [GitHub Actions](${context.serverUrl}/${event.repository.owner.login}/${event.repository.name}/actions/runs/${context.runId})`,
+  })
+
   const repositories = findCheckedRepositories(event.comment.body)
   for (const repository of repositories) {
     await processRepository(taskFilename, repository, octokit, context)
@@ -77,7 +86,7 @@ export const processRepository = async (
   octokit: Octokit,
   context: Context,
 ) => {
-  const workspace = await fs.mkdtemp('actions-tanpopo-bot-')
+  const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
   core.info(`Created a workspace ${workspace}`)
   process.chdir(workspace)
 
@@ -94,7 +103,7 @@ export const processRepository = async (
   await exec.exec('git', ['config', 'user.name', context.actor])
   await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`])
 
-  await exec.exec('bash', [taskFilename])
+  await exec.exec('bash', [`${context.workspace}/${taskFilename}`])
 
   await exec.exec('git', ['status', '--porcelain'])
   assert(octokit)
