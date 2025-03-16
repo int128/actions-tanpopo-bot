@@ -1,3 +1,6 @@
+#!/bin/bash
+set -eux -o pipefail
+
 pnpm remove @tsconfig/recommended
 pnpm add -D @tsconfig/node20
 
