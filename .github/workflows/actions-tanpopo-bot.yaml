@@ -1,33 +1,20 @@
 name: actions-tanpopo-bot
 
 on:
-  issues:
-    types:
-      - opened
-      - edited
-  issue_comment:
-    types:
-      - edited
   pull_request:
     paths:
       - .github/workflows/actions-tanpopo-bot.yaml
+    types:
+      - opened
+      - synchronize
+      - edited
 
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.workflow }}--${{ github.event.issue.number }}
-  
+  group: ${{ github.workflow }}--${{ github.ref }}
+
 jobs:
   actions-tanpopo-bot:
-    if: |
-      (
-        github.event.sender.type != 'Bot' &&
-        github.event_name == 'issues' &&
-        contains(github.event.issue.labels.*.name, '/tanpopo')
-      ) || (
-        github.event.sender.type != 'Bot' &&
-        github.event_name == 'issue_comment' &&
-        startsWith(github.event.comment.body, '<!-- int128/actions-tanpopo-bot -->')
-      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
