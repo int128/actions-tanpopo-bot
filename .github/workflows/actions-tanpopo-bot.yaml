@@ -36,6 +36,7 @@ jobs:
         with:
           app-id: ${{ secrets.BOT_APP_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
       - name: Run int128/actions-tanpopo-bot
         uses: ./
         with:

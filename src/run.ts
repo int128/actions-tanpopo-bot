@@ -64,7 +64,7 @@ const processPullRequestReviewComment = async (
     repo: event.repository.name,
     pull_number: event.pull_request.number,
     comment_id: event.comment.id,
-    body: `Running ${taskFilename} in [GitHub Actions](${context.serverUrl}/${event.repository.owner.login}/${event.repository.name}/actions/runs/${context.runId})`,
+    body: `@${context.actor} Running ${taskFilename} in [GitHub Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
   })
 
   const repositories = findCheckedRepositories(event.comment.body)
@@ -95,6 +95,7 @@ export const processRepository = async (
     'git',
     [
       'clone',
+      '--quiet',
       '-c',
       `http.https://github.com/.extraheader=AUTHORIZATION: basic ${credentials}`,
       '--depth=1',
@@ -109,6 +110,24 @@ export const processRepository = async (
 
   await exec.exec('bash', [`${context.workspace}/${taskFilename}`], { cwd: workspace })
 
-  await exec.exec('git', ['status', '--porcelain'], { cwd: workspace })
+  const { stdout: gitStatus } = await exec.getExecOutput('git', ['status', '--porcelain'], { cwd: workspace })
+  if (gitStatus === '') {
+    return
+  }
+  await exec.exec('git', ['add', '.'], { cwd: workspace })
+  await exec.exec(
+    'git',
+    [
+      'commit',
+      '--quiet',
+      '-m',
+      `Run ${taskFilename}`,
+      '-m',
+      `GitHub Actions: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+    ],
+    {
+      cwd: workspace,
+    },
+  )
   assert(octokit)
 }
