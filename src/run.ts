@@ -88,23 +88,27 @@ export const processRepository = async (
 ) => {
   const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
   core.info(`Created a workspace ${workspace}`)
-  process.chdir(workspace)
 
   const credentials = Buffer.from(`x-access-token:${core.getInput('token')}`).toString('base64')
   core.setSecret(credentials)
-  await exec.exec('git', [
-    'clone',
-    '-c',
-    `http.https://github.com/.extraheader=AUTHORIZATION: basic ${credentials}`,
-    '--depth=1',
-    `${context.serverUrl}/${repository}.git`,
-  ])
+  await exec.exec(
+    'git',
+    [
+      'clone',
+      '-c',
+      `http.https://github.com/.extraheader=AUTHORIZATION: basic ${credentials}`,
+      '--depth=1',
+      `${context.serverUrl}/${repository}.git`,
+      '.',
+    ],
+    { cwd: workspace },
+  )
 
-  await exec.exec('git', ['config', 'user.name', context.actor])
-  await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`])
+  await exec.exec('git', ['config', 'user.name', context.actor], { cwd: workspace })
+  await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`], { cwd: workspace })
 
-  await exec.exec('bash', [`${context.workspace}/${taskFilename}`])
+  await exec.exec('bash', [`${context.workspace}/${taskFilename}`], { cwd: workspace })
 
-  await exec.exec('git', ['status', '--porcelain'])
+  await exec.exec('git', ['status', '--porcelain'], { cwd: workspace })
   assert(octokit)
 }
