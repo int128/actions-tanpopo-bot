@@ -22,11 +22,6 @@ export const run = async (): Promise<void> => {
 }
 
 const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => {
-  const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
-  const content = `<!-- actions-tanpopo-bot -->
-## :robot: actions-tanpopo-bot
-${repositories.map((repo) => `- [ ] ${repo.full_name}`).join('\n')}`
-
   const { data: files } = await octokit.pulls.listFiles({
     owner: event.repository.owner.login,
     repo: event.repository.name,
@@ -34,17 +29,23 @@ ${repositories.map((repo) => `- [ ] ${repo.full_name}`).join('\n')}`
     per_page: 100,
   })
   const taskFilenames = files.filter((file) => file.filename.startsWith('tasks/')).map((file) => file.filename)
-
+  const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
   for (const taskFilename of taskFilenames) {
-    await octokit.pulls.createReviewComment({
-      owner: event.repository.owner.login,
-      repo: event.repository.name,
-      pull_number: event.number,
-      commit_id: event.pull_request.head.sha,
-      subject_type: 'file',
-      path: taskFilename,
-      body: content,
-    })
+    for (const repository of repositories) {
+      const metadata = { repository: repository.full_name }
+      const body = `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->
+- [ ] Apply ${taskFilename} to ${repository.full_name}
+`
+      await octokit.pulls.createReviewComment({
+        owner: event.repository.owner.login,
+        repo: event.repository.name,
+        pull_number: event.number,
+        commit_id: event.pull_request.head.sha,
+        subject_type: 'file',
+        path: taskFilename,
+        body,
+      })
+    }
   }
 }
 
@@ -53,9 +54,15 @@ const processPullRequestReviewComment = async (
   octokit: Octokit,
   context: Context,
 ) => {
-  if (!event.comment.body.startsWith('<!-- actions-tanpopo-bot -->')) {
+  const metadataMatcher = /<!-- actions-tanpopo-bot (.+?) -->/.exec(event.comment.body)
+  if (!metadataMatcher) {
     return
   }
+  const metadata = JSON.parse(metadataMatcher[1]) as unknown
+  assert(typeof metadata === 'object')
+  assert(metadata !== null)
+  assert('repository' in metadata)
+  assert(typeof metadata.repository === 'string')
 
   const taskFilename = event.comment.path
 
@@ -64,13 +71,9 @@ const processPullRequestReviewComment = async (
     repo: event.repository.name,
     pull_number: event.pull_request.number,
     comment_id: event.comment.id,
-    body: `@${context.actor} Running ${taskFilename} in [GitHub Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+    body: `@${context.actor} Apply ${taskFilename} to ${metadata.repository} in [GitHub Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
   })
-
-  const repositories = findCheckedRepositories(event.comment.body)
-  for (const repository of repositories) {
-    await processRepository(taskFilename, repository, octokit, context)
-  }
+  await processRepository(taskFilename, metadata.repository, octokit, context)
 }
 
 export const findCheckedRepositories = (body: string): string[] => {
@@ -125,9 +128,7 @@ export const processRepository = async (
       '-m',
       `GitHub Actions: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
     ],
-    {
-      cwd: workspace,
-    },
+    { cwd: workspace },
   )
   assert(octokit)
 }
