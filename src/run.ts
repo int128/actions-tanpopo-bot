@@ -57,9 +57,10 @@ const processPullRequestReviewComment = async (
     return
   }
 
+  const taskFilename = event.comment.path
   const repositories = findCheckedRepositories(event.comment.body)
   for (const repository of repositories) {
-    await processRepository(repository, octokit, context)
+    await processRepository(taskFilename, repository, octokit, context)
   }
 }
 
@@ -70,7 +71,12 @@ export const findCheckedRepositories = (body: string): string[] => {
     .map((line) => line.slice('- [x]'.length).trim())
 }
 
-export const processRepository = async (repository: string, octokit: Octokit, context: Context) => {
+export const processRepository = async (
+  taskFilename: string,
+  repository: string,
+  octokit: Octokit,
+  context: Context,
+) => {
   const workspace = await fs.mkdtemp('actions-tanpopo-bot-')
   core.info(`Created a workspace ${workspace}`)
   process.chdir(workspace)
@@ -88,5 +94,8 @@ export const processRepository = async (repository: string, octokit: Octokit, co
   await exec.exec('git', ['config', 'user.name', context.actor])
   await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`])
 
+  await exec.exec('bash', [taskFilename])
+
+  await exec.exec('git', ['status', '--porcelain'])
   assert(octokit)
 }
