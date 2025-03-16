@@ -23,52 +23,29 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
 ${repositories.map((repo) => `- [ ] ${repo.full_name}`).join('\n')}
 `
 
-  const currentBody =
-    event.pull_request.body ??
-    (await (async () => {
-      const { data: pull } = await octokit.rest.pulls.get({
-        owner: event.repository.owner.login,
-        repo: event.repository.name,
-        pull_number: event.pull_request.number,
-      })
-      core.info(`Fetched the body of ${pull.html_url}`)
-      return pull.body || ''
-    })())
-
-  const marker = '<!-- int128/actions-tanpopo-bot -->'
-  const newBody = insertContentIntoBody(currentBody, content, marker)
-  if (newBody === currentBody) {
-    core.info(`The pull request body is already desired state`)
-    return
-  }
-  await octokit.pulls.update({
+  const { data: files } = await octokit.pulls.listFiles({
     owner: event.repository.owner.login,
     repo: event.repository.name,
-    pull_number: event.pull_request.number,
-    body: newBody,
+    pull_number: event.number,
+    per_page: 100,
   })
+  const taskFilenames = files.filter((file) => file.filename.startsWith('tasks/')).map((file) => file.filename)
+
+  for (const taskFilename of taskFilenames) {
+    await octokit.pulls.createReviewComment({
+      owner: event.repository.owner.login,
+      repo: event.repository.name,
+      pull_number: event.number,
+      commit_id: event.pull_request.head.sha,
+      subject_type: 'file',
+      path: taskFilename,
+      body: content,
+    })
+  }
 }
 
-export const insertContentIntoBody = (body: string, content: string, marker: string): string => {
-  // Typically marker is a comment, so wrap with new lines to prevent corruption of markdown
-  marker = `\n${marker}\n`
-
-  const elements = body.split(marker)
-  if (elements.length === 1) {
-    const firstBlock = elements[0]
-    return [firstBlock, marker, content, marker].join('')
-  }
-  if (elements.length > 2) {
-    const firstBlock = elements[0]
-    elements.shift()
-    elements.shift()
-    return [firstBlock, marker, content, marker, ...elements].join('')
-  }
+export const findCheckedRepositories = (body: string): string[] => {
   return body
-}
-
-export const findCheckedRepositories = (comment: string): string[] => {
-  return comment
     .split('\n')
     .filter((line) => line.startsWith('- [x]'))
     .map((line) => line.slice('- [x]'.length).trim())
