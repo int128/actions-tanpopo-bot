@@ -4,7 +4,7 @@ import * as exec from '@actions/exec'
 import * as fs from 'fs/promises'
 import { Octokit } from '@octokit/action'
 import { Context, getContext, getOctokit } from './github.js'
-import { PullRequestEvent } from '@octokit/webhooks-types'
+import { PullRequestEvent, PullRequestReviewCommentEditedEvent } from '@octokit/webhooks-types'
 
 export const run = async (): Promise<void> => {
   const octokit = getOctokit()
@@ -12,6 +12,11 @@ export const run = async (): Promise<void> => {
   if ('pull_request' in context.payload && 'number' in context.payload) {
     core.info(`Processing #${context.payload.number}`)
     await processPullRequest(context.payload, octokit)
+    return
+  }
+  if ('pull_request' in context.payload && 'comment' in context.payload && context.payload.action === 'edited') {
+    core.info(`Processing the review comment ${context.payload.comment.html_url}`)
+    await processPullRequestReviewComment(context.payload, octokit, context)
     return
   }
 }
@@ -44,6 +49,25 @@ ${repositories.map((repo) => `- [ ] ${repo.full_name}`).join('\n')}
   }
 }
 
+const processPullRequestReviewComment = async (
+  event: PullRequestReviewCommentEditedEvent,
+  octokit: Octokit,
+  context: Context,
+) => {
+  const { data: me } = await octokit.rest.users.getAuthenticated()
+  if (event.comment.user.id !== me.id) {
+    core.info(
+      `This review comment author ${event.comment.user.login}(${event.comment.user.id}) !== ${me.login}(${me.id})`,
+    )
+    return
+  }
+
+  const repositories = findCheckedRepositories(event.comment.body)
+  for (const repository of repositories) {
+    await processRepository(repository, octokit, context)
+  }
+}
+
 export const findCheckedRepositories = (body: string): string[] => {
   return body
     .split('\n')
@@ -53,6 +77,7 @@ export const findCheckedRepositories = (body: string): string[] => {
 
 export const processRepository = async (repository: string, octokit: Octokit, context: Context) => {
   const workspace = await fs.mkdtemp('actions-tanpopo-bot-')
+  core.info(`Created a workspace ${workspace}`)
   process.chdir(workspace)
 
   const credentials = Buffer.from(`x-access-token:${core.getInput('token')}`).toString('base64')
