@@ -4,73 +4,67 @@ import * as exec from '@actions/exec'
 import * as fs from 'fs/promises'
 import { Octokit } from '@octokit/action'
 import { Context, getContext, getOctokit } from './github.js'
-import { IssueCommentEditedEvent, IssuesEditedEvent, IssuesOpenedEvent } from '@octokit/webhooks-types'
+import { PullRequestEvent } from '@octokit/webhooks-types'
 
 export const run = async (): Promise<void> => {
   const octokit = getOctokit()
   const context = await getContext()
-  if ('issue' in context.payload) {
-    if ('comment' in context.payload) {
-      if (context.payload.action === 'edited') {
-        core.info(`Processing #${context.payload.comment.html_url}`)
-        await processIssueComment(context.payload, octokit, context)
-        return
-      }
-    }
-
-    if (context.payload.action === 'opened' || context.payload.action === 'edited') {
-      core.info(`Processing #${context.payload.issue.number}`)
-      await processIssue(context.payload, octokit)
-      return
-    }
+  if ('pull_request' in context.payload && 'number' in context.payload) {
+    core.info(`Processing #${context.payload.number}`)
+    await processPullRequest(context.payload, octokit)
+    return
   }
 }
 
-const processIssue = async (event: IssuesOpenedEvent | IssuesEditedEvent, octokit: Octokit) => {
+const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => {
   const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
-  const commentBody = `<!-- int128/actions-tanpopo-bot -->
+  const content = `
 ## :robot: actions-tanpopo-bot
 ${repositories.map((repo) => `- [ ] ${repo.full_name}`).join('\n')}
 `
 
-  const { data: comments } = await octokit.rest.issues.listComments({
-    owner: event.repository.owner.login,
-    repo: event.repository.name,
-    issue_number: event.issue.number,
-    per_page: 100,
-  })
-  const botComment = comments.find((comment) => comment.body?.startsWith('<!-- int128/actions-tanpopo-bot -->'))
-  if (botComment) {
-    await octokit.issues.updateComment({
-      owner: event.repository.owner.login,
-      repo: event.repository.name,
-      comment_id: botComment.id,
-      body: commentBody,
-    })
+  const currentBody =
+    event.pull_request.body ??
+    (await (async () => {
+      const { data: pull } = await octokit.rest.pulls.get({
+        owner: event.repository.owner.login,
+        repo: event.repository.name,
+        pull_number: event.pull_request.number,
+      })
+      core.info(`Fetched the body of ${pull.html_url}`)
+      return pull.body || ''
+    })())
+
+  const marker = '<!-- int128/actions-tanpopo-bot -->'
+  const newBody = insertContentIntoBody(currentBody, content, marker)
+  if (newBody === currentBody) {
+    core.info(`The pull request body is already desired state`)
     return
   }
-  await octokit.issues.createComment({
+  await octokit.pulls.update({
     owner: event.repository.owner.login,
     repo: event.repository.name,
-    issue_number: event.issue.number,
-    body: commentBody,
+    pull_number: event.pull_request.number,
+    body: newBody,
   })
 }
 
-const processIssueComment = async (event: IssueCommentEditedEvent, octokit: Octokit, context: Context) => {
-  const repositories = findCheckedRepositories(event.comment.body)
+export const insertContentIntoBody = (body: string, content: string, marker: string): string => {
+  // Typically marker is a comment, so wrap with new lines to prevent corruption of markdown
+  marker = `\n${marker}\n`
 
-  for (const repository of repositories) {
-    core.info(`Processing the repository: ${repository}`)
-    await processRepository(repository, octokit, context)
+  const elements = body.split(marker)
+  if (elements.length === 1) {
+    const firstBlock = elements[0]
+    return [firstBlock, marker, content, marker].join('')
   }
-
-  await octokit.issues.updateComment({
-    owner: event.repository.owner.login,
-    repo: event.repository.name,
-    comment_id: event.comment.id,
-    body: event.comment.body.replaceAll('- [x] ', '- [ ] '),
-  })
+  if (elements.length > 2) {
+    const firstBlock = elements[0]
+    elements.shift()
+    elements.shift()
+    return [firstBlock, marker, content, marker, ...elements].join('')
+  }
+  return body
 }
 
 export const findCheckedRepositories = (comment: string): string[] => {
@@ -80,7 +74,7 @@ export const findCheckedRepositories = (comment: string): string[] => {
     .map((line) => line.slice('- [x]'.length).trim())
 }
 
-const processRepository = async (repository: string, octokit: Octokit, context: Context) => {
+export const processRepository = async (repository: string, octokit: Octokit, context: Context) => {
   const workspace = await fs.mkdtemp('actions-tanpopo-bot-')
   process.chdir(workspace)
 
