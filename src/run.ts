@@ -23,10 +23,9 @@ export const run = async (): Promise<void> => {
 
 const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => {
   const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
-  const content = `
+  const content = `<!-- actions-tanpopo-bot -->
 ## :robot: actions-tanpopo-bot
-${repositories.map((repo) => `- [ ] ${repo.full_name}`).join('\n')}
-`
+${repositories.map((repo) => `- [ ] ${repo.full_name}`).join('\n')}`
 
   const { data: files } = await octokit.pulls.listFiles({
     owner: event.repository.owner.login,
@@ -54,11 +53,7 @@ const processPullRequestReviewComment = async (
   octokit: Octokit,
   context: Context,
 ) => {
-  const { data: me } = await octokit.rest.users.getAuthenticated()
-  if (event.comment.user.id !== me.id) {
-    core.info(
-      `This review comment author ${event.comment.user.login}(${event.comment.user.id}) !== ${me.login}(${me.id})`,
-    )
+  if (!event.comment.body.startsWith('<!-- actions-tanpopo-bot -->')) {
     return
   }
 
