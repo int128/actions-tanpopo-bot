@@ -34,7 +34,7 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
     for (const repository of repositories) {
       const metadata = { repository: repository.full_name }
       const body = `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->
-- [ ] Apply ${taskFilename} to ${repository.full_name}
+- [ ] Apply to ${repository.full_name}
 `
       await octokit.pulls.createReviewComment({
         owner: event.repository.owner.login,
@@ -71,16 +71,9 @@ const processPullRequestReviewComment = async (
     repo: event.repository.name,
     pull_number: event.pull_request.number,
     comment_id: event.comment.id,
-    body: `@${context.actor} Apply ${taskFilename} to ${metadata.repository} in [GitHub Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+    body: `@${context.actor} Applying ${taskFilename} to ${metadata.repository} in [GitHub Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
   })
   await processRepository(taskFilename, metadata.repository, octokit, context)
-}
-
-export const findCheckedRepositories = (body: string): string[] => {
-  return body
-    .split('\n')
-    .filter((line) => line.startsWith('- [x]'))
-    .map((line) => line.slice('- [x]'.length).trim())
 }
 
 export const processRepository = async (
@@ -90,7 +83,7 @@ export const processRepository = async (
   context: Context,
 ) => {
   const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
-  core.info(`Created a workspace ${workspace}`)
+  core.info(`Created a workspace at ${workspace}`)
 
   const credentials = Buffer.from(`x-access-token:${core.getInput('token')}`).toString('base64')
   core.setSecret(credentials)
@@ -107,11 +100,10 @@ export const processRepository = async (
     ],
     { cwd: workspace },
   )
-
   await exec.exec('git', ['config', 'user.name', context.actor], { cwd: workspace })
   await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`], { cwd: workspace })
 
-  await exec.exec('bash', [`${context.workspace}/${taskFilename}`], { cwd: workspace })
+  await exec.exec('bash', ['-eux', '-opipefail', `${context.workspace}/${taskFilename}`], { cwd: workspace })
 
   const { stdout: gitStatus } = await exec.getExecOutput('git', ['status', '--porcelain'], { cwd: workspace })
   if (gitStatus === '') {
@@ -130,5 +122,20 @@ export const processRepository = async (
     ],
     { cwd: workspace },
   )
-  assert(octokit)
+  await exec.exec('git', ['rev-parse', 'HEAD'], { cwd: workspace })
+
+  const headBranch = `bot--${taskFilename.replaceAll(/[^\w]/, '-')}`
+  await exec.exec('git', ['push', '--quiet', '-f', 'origin', `HEAD:${headBranch}`], {
+    cwd: workspace,
+  })
+  const [owner, repo] = repository.split('/')
+  const { data: pull } = await octokit.rest.pulls.create({
+    owner,
+    repo,
+    title: `Apply ${taskFilename}`,
+    head: headBranch,
+    base: 'main',
+    body: `From ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+  })
+  core.info(`Created ${pull.html_url}`)
 }
