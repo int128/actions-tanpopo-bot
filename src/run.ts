@@ -42,7 +42,7 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
         const metadata = { repository: repository.full_name }
         return {
           path: taskFilename,
-          position: 0,
+          position: 1,
           body: `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->
 - [ ] Apply to ${repository.full_name}
 `,
