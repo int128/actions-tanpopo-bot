@@ -176,6 +176,6 @@ const processPullRequestReviewComment = async (
     owner: event.repository.owner.login,
     repo: event.repository.name,
     comment_id: event.comment.id,
-    body: `[GitHub Actions](${workflowRunUrl}) created ${pull.html_url}`,
+    body: `- ${pull.html_url} created by [GitHub Actions](${workflowRunUrl})`,
   })
 }
