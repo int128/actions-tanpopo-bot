@@ -114,7 +114,7 @@ const processPullRequestReviewComment = async (
     owner: event.repository.owner.login,
     repo: event.repository.name,
     comment_id: event.comment.id,
-    body: `[GitHub Actions](${workflowRunUrl}) is applying the task to ${metadata.repository}`,
+    body: `[GitHub Actions](${workflowRunUrl}) is running the task for ${metadata.repository}`,
   })
 
   const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
