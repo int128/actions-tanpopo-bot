@@ -106,7 +106,7 @@ export const processRepository = async (
   await exec.exec('git', ['config', 'user.name', context.actor], { cwd: workspace })
   await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`], { cwd: workspace })
 
-  await exec.exec('bash', ['-eux', '-opipefail', `${context.workspace}/${taskFilename}`], { cwd: workspace })
+  await exec.exec('bash', ['-eux', '-o', 'pipefail', `${context.workspace}/${taskFilename}`], { cwd: workspace })
 
   const { stdout: gitStatus } = await exec.getExecOutput('git', ['status', '--porcelain'], { cwd: workspace })
   if (gitStatus === '') {
