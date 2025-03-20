@@ -69,7 +69,7 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
         path: taskFilename,
         in_reply_to: parentComment.id,
         body: `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->
-- [ ] Apply to ${repository.full_name}`,
+- [ ] ${repository.full_name}`,
       })
     }
   }
