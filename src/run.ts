@@ -55,7 +55,7 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
       commit_id: event.pull_request.head.sha,
       subject_type: 'file',
       path: taskFilename,
-      body: `Click the checkbox to apply the task to the repository.`,
+      body: `<!-- actions-tanpopo-bot -->\nClick the checkbox to apply the task to the repository.`,
     })
 
     for (const repository of repositories) {
@@ -68,8 +68,7 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
         subject_type: 'file',
         path: taskFilename,
         in_reply_to: parentComment.id,
-        body: `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->
-- [ ] ${repository.full_name}`,
+        body: `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->\n- [ ] ${repository.full_name}`,
       })
     }
   }
