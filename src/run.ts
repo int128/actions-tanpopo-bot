@@ -2,6 +2,7 @@ import assert from 'assert'
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as fs from 'fs/promises'
+import * as path from 'path'
 import { Octokit } from '@octokit/action'
 import { Context, getContext, getOctokit } from './github.js'
 import { PullRequestEvent, PullRequestReviewCommentEditedEvent } from '@octokit/webhooks-types'
@@ -28,7 +29,7 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
     pull_number: event.number,
   })
   for (const existingReviewComment of existingReviewComments) {
-    if (/<!-- actions-tanpopo-bot (.+?) -->/.exec(existingReviewComment.body)) {
+    if (existingReviewComment.body.startsWith('<!-- actions-tanpopo-bot')) {
       await octokit.rest.pulls.deleteReviewComment({
         owner: event.repository.owner.login,
         repo: event.repository.name,
@@ -37,6 +38,8 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
     }
   }
 
+  const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
+
   const { data: files } = await octokit.pulls.listFiles({
     owner: event.repository.owner.login,
     repo: event.repository.name,
@@ -44,7 +47,6 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
     per_page: 100,
   })
   const taskFilenames = files.filter((file) => file.filename.startsWith('tasks/')).map((file) => file.filename)
-  const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
   for (const taskFilename of taskFilenames) {
     await octokit.pulls.createReview({
       owner: event.repository.owner.login,
@@ -82,24 +84,21 @@ const processPullRequestReviewComment = async (
   assert('repository' in metadata)
   assert(typeof metadata.repository === 'string')
 
-  const taskFilename = event.comment.path
+  const workflowRunUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+  const taskDir = path.dirname(event.comment.path)
 
-  await octokit.rest.pulls.createReplyForReviewComment({
+  const readme = await fs.readFile(path.join(taskDir, 'README.md'), 'utf-8')
+  const taskName = readme.match(/# (.+)/)?.[1]
+  assert(taskName, 'README.md must have a title')
+
+  await octokit.rest.pulls.updateReviewComment({
     owner: event.repository.owner.login,
     repo: event.repository.name,
     pull_number: event.pull_request.number,
     comment_id: event.comment.id,
-    body: `@${context.actor} Applying ${taskFilename} to ${metadata.repository} in [GitHub Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+    body: `[GitHub Actions](${workflowRunUrl}) is applying the task to ${metadata.repository}`,
   })
-  await processRepository(taskFilename, metadata.repository, octokit, context)
-}
 
-export const processRepository = async (
-  taskFilename: string,
-  repository: string,
-  octokit: Octokit,
-  context: Context,
-) => {
   const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
   core.info(`Created a workspace at ${workspace}`)
 
@@ -113,47 +112,53 @@ export const processRepository = async (
       '-c',
       `http.https://github.com/.extraheader=AUTHORIZATION: basic ${credentials}`,
       '--depth=1',
-      `${context.serverUrl}/${repository}.git`,
+      `${context.serverUrl}/${metadata.repository}.git`,
       '.',
     ],
     { cwd: workspace },
   )
-  await exec.exec('git', ['config', 'user.name', context.actor], { cwd: workspace })
-  await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`], { cwd: workspace })
 
-  await exec.exec('bash', ['-eux', '-o', 'pipefail', `${context.workspace}/${taskFilename}`], { cwd: workspace })
+  await exec.exec('bash', ['-eux', '-o', 'pipefail', `${context.workspace}/${taskDir}/task.sh`], { cwd: workspace })
 
   const { stdout: gitStatus } = await exec.getExecOutput('git', ['status', '--porcelain'], { cwd: workspace })
   if (gitStatus === '') {
     return
   }
   await exec.exec('git', ['add', '.'], { cwd: workspace })
-  await exec.exec(
-    'git',
-    [
-      'commit',
-      '--quiet',
-      '-m',
-      `Run ${taskFilename}`,
-      '-m',
-      `GitHub Actions: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-    ],
-    { cwd: workspace },
-  )
+  await exec.exec('git', ['config', 'user.name', context.actor], { cwd: workspace })
+  await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`], { cwd: workspace })
+  await exec.exec('git', ['commit', '--quiet', '-m', `Apply ${taskDir}`, '-m', `GitHub Actions: ${workflowRunUrl}`], {
+    cwd: workspace,
+  })
   await exec.exec('git', ['rev-parse', 'HEAD'], { cwd: workspace })
 
-  const headBranch = `bot--${taskFilename.replaceAll(/[^\w]/g, '-')}`
+  const headBranch = `bot--${taskDir.replaceAll(/[^\w]/g, '-')}`
   await exec.exec('git', ['push', '--quiet', '-f', 'origin', `HEAD:${headBranch}`], {
     cwd: workspace,
   })
-  const [owner, repo] = repository.split('/')
+
+  const { stdout: defaultBranchRef } = await exec.getExecOutput(
+    'git',
+    ['rev-parse', '--symbolic-full-name', 'origin/HEAD'],
+    { cwd: workspace },
+  )
+  const defaultBranch = defaultBranchRef.split('/').pop() ?? 'main'
+  const [owner, repo] = metadata.repository.split('/')
   const { data: pull } = await octokit.rest.pulls.create({
     owner,
     repo,
-    title: `Apply ${taskFilename}`,
+    title: taskName,
     head: headBranch,
-    base: 'main',
-    body: `From ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+    base: defaultBranch,
+    body: readme,
   })
   core.info(`Created ${pull.html_url}`)
+
+  await octokit.rest.pulls.updateReviewComment({
+    owner: event.repository.owner.login,
+    repo: event.repository.name,
+    pull_number: event.pull_request.number,
+    comment_id: event.comment.id,
+    body: `[GitHub Actions](${workflowRunUrl}) created ${pull.html_url}`,
+  })
 }
