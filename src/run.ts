@@ -46,7 +46,7 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
     pull_number: event.number,
     per_page: 100,
   })
-  const taskFilenames = files.filter((file) => file.filename.startsWith('tasks/')).map((file) => file.filename)
+  const taskFilenames = filterTaskFilenames(files.map((file) => file.filename))
   for (const taskFilename of taskFilenames) {
     const { data: parentComment } = await octokit.pulls.createReviewComment({
       owner: event.repository.owner.login,
@@ -73,6 +73,20 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
       })
     }
   }
+}
+
+const filterTaskFilenames = (files: string[]): string[] => {
+  const seenDir = new Set<string>()
+  return files
+    .filter((file) => file.startsWith('tasks/'))
+    .filter((file) => {
+      const dir = path.dirname(file)
+      if (seenDir.has(dir)) {
+        return false
+      }
+      seenDir.add(dir)
+      return true
+    })
 }
 
 const processPullRequestReviewComment = async (
