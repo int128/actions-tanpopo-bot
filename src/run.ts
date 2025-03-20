@@ -22,6 +22,21 @@ export const run = async (): Promise<void> => {
 }
 
 const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => {
+  const { data: existingReviewComments } = await octokit.rest.pulls.listReviewComments({
+    owner: event.repository.owner.login,
+    repo: event.repository.name,
+    pull_number: event.number,
+  })
+  for (const existingReviewComment of existingReviewComments) {
+    if (/<!-- actions-tanpopo-bot (.+?) -->/.exec(existingReviewComment.body)) {
+      await octokit.rest.pulls.deleteReviewComment({
+        owner: event.repository.owner.login,
+        repo: event.repository.name,
+        comment_id: existingReviewComment.id,
+      })
+    }
+  }
+
   const { data: files } = await octokit.pulls.listFiles({
     owner: event.repository.owner.login,
     repo: event.repository.name,
@@ -127,7 +142,7 @@ export const processRepository = async (
   )
   await exec.exec('git', ['rev-parse', 'HEAD'], { cwd: workspace })
 
-  const headBranch = `bot--${taskFilename.replaceAll(/[^\w]/, '-')}`
+  const headBranch = `bot--${taskFilename.replaceAll(/[^\w]/g, '-')}`
   await exec.exec('git', ['push', '--quiet', '-f', 'origin', `HEAD:${headBranch}`], {
     cwd: workspace,
   })
