@@ -31,21 +31,23 @@ const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => 
   const taskFilenames = files.filter((file) => file.filename.startsWith('tasks/')).map((file) => file.filename)
   const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
   for (const taskFilename of taskFilenames) {
-    for (const repository of repositories) {
-      const metadata = { repository: repository.full_name }
-      const body = `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->
+    await octokit.pulls.createReview({
+      owner: event.repository.owner.login,
+      repo: event.repository.name,
+      pull_number: event.number,
+      commit_id: event.pull_request.head.sha,
+      event: 'COMMENT',
+      body: '',
+      comments: repositories.map((repository) => {
+        const metadata = { repository: repository.full_name }
+        return {
+          path: taskFilename,
+          body: `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->
 - [ ] Apply to ${repository.full_name}
-`
-      await octokit.pulls.createReviewComment({
-        owner: event.repository.owner.login,
-        repo: event.repository.name,
-        pull_number: event.number,
-        commit_id: event.pull_request.head.sha,
-        subject_type: 'file',
-        path: taskFilename,
-        body,
-      })
-    }
+`,
+        }
+      }),
+    })
   }
 }
 
