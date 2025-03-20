@@ -160,7 +160,7 @@ const processPullRequestReviewComment = async (
     ['rev-parse', '--symbolic-full-name', 'origin/HEAD'],
     { cwd: workspace },
   )
-  const defaultBranch = defaultBranchRef.split('/').pop() ?? 'main'
+  const defaultBranch = defaultBranchRef.trim().split('/').pop() ?? 'main'
   const [owner, repo] = metadata.repository.split('/')
   const { data: pull } = await octokit.rest.pulls.create({
     owner,
