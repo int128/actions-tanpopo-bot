@@ -97,7 +97,7 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
   const defaultBranch = defaultBranchRef.trim().split('/').pop() ?? 'main'
   const [owner, repo] = repository.split('/')
 
-  await createOrUpdatePullRequest(octokit, {
+  const pull = await createOrUpdatePullRequest(octokit, {
     owner,
     repo,
     title: taskName,
@@ -105,6 +105,14 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
     base: defaultBranch,
     body: readme,
   })
+
+  await octokit.rest.pulls.requestReviewers({
+    owner,
+    repo,
+    pull_number: pull.number,
+    reviewers: [context.actor],
+  })
+  core.info(`Requested review from ${context.actor} for pull request: ${pull.html_url}`)
 }
 
 type CreatePullRequest = NonNullable<Awaited<Parameters<Octokit['rest']['pulls']['create']>[0]>>
