@@ -25,19 +25,19 @@ export default defineConfig({
 EOF
 
 find tests -name '*.test.ts' | while read -r ts; do
-  if grep 'test' "$ts" > /dev/null; then
+  if grep 'test(' "$ts" > /dev/null; then
     sed -e "1i\\
 import { test } from 'vitest'" -i "$ts"
   fi
-  if grep 'describe' "$ts" > /dev/null; then
+  if grep 'describe(' "$ts" > /dev/null; then
     sed -e "1i\\
 import { describe } from 'vitest'" -i "$ts"
   fi
-  if grep 'expect' "$ts" > /dev/null; then
+  if grep 'expect(' "$ts" > /dev/null; then
     sed -e "1i\\
 import { expect } from 'vitest'" -i "$ts"
   fi
-  if grep 'it' "$ts" > /dev/null; then
+  if grep 'it(' "$ts" > /dev/null; then
     sed -e "1i\\
 import { it } from 'vitest'" -i "$ts"
   fi
