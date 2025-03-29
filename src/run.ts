@@ -5,117 +5,51 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import { Octokit } from '@octokit/action'
 import { Context, getContext, getOctokit } from './github.js'
-import { PullRequestEvent, PullRequestReviewCommentEditedEvent } from '@octokit/webhooks-types'
+import { PullRequestEvent } from '@octokit/webhooks-types'
 
 export const run = async (): Promise<void> => {
   const octokit = getOctokit()
   const context = await getContext()
   if ('pull_request' in context.payload && 'number' in context.payload) {
     core.info(`Processing #${context.payload.number}`)
-    await processPullRequest(context.payload, octokit)
-    return
-  }
-  if ('pull_request' in context.payload && 'comment' in context.payload && context.payload.action === 'edited') {
-    core.info(`Processing the review comment ${context.payload.comment.html_url}`)
-    await processPullRequestReviewComment(context.payload, octokit, context)
+    await processPullRequest(context.payload, octokit, context)
     return
   }
 }
 
-const processPullRequest = async (event: PullRequestEvent, octokit: Octokit) => {
-  const { data: existingReviewComments } = await octokit.rest.pulls.listReviewComments({
-    owner: event.repository.owner.login,
-    repo: event.repository.name,
-    pull_number: event.number,
-  })
-  for (const existingReviewComment of existingReviewComments) {
-    if (existingReviewComment.body.startsWith('<!-- actions-tanpopo-bot')) {
-      await octokit.rest.pulls.deleteReviewComment({
-        owner: event.repository.owner.login,
-        repo: event.repository.name,
-        comment_id: existingReviewComment.id,
-      })
-    }
-  }
-
-  const repositories = await octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, { per_page: 100 })
-
+const processPullRequest = async (event: PullRequestEvent, octokit: Octokit, context: Context) => {
   const { data: files } = await octokit.pulls.listFiles({
     owner: event.repository.owner.login,
     repo: event.repository.name,
     pull_number: event.number,
     per_page: 100,
   })
-  const taskFilenames = filterTaskFilenames(files.map((file) => file.filename))
-  for (const taskFilename of taskFilenames) {
-    const { data: parentComment } = await octokit.pulls.createReviewComment({
-      owner: event.repository.owner.login,
-      repo: event.repository.name,
-      pull_number: event.number,
-      commit_id: event.pull_request.head.sha,
-      subject_type: 'file',
-      path: taskFilename,
-      body: `<!-- actions-tanpopo-bot -->\nClick the checkbox to apply the task to the repository.`,
-    })
+  const taskDirs = new Set(files.map((file) => path.dirname(file.filename)).filter((dir) => dir.startsWith('tasks/')))
+  core.info(`Found task directories: ${[...taskDirs].join(', ')}`)
 
+  for (const taskDir of taskDirs) {
+    const repositories = parseRepositoriesFile(await fs.readFile(path.join(taskDir, 'repositories'), 'utf-8'))
     for (const repository of repositories) {
-      const metadata = { repository: repository.full_name }
-      await octokit.rest.pulls.createReviewComment({
-        owner: event.repository.owner.login,
-        repo: event.repository.name,
-        pull_number: event.number,
-        commit_id: event.pull_request.head.sha,
-        subject_type: 'file',
-        path: taskFilename,
-        in_reply_to: parentComment.id,
-        body: `<!-- actions-tanpopo-bot ${JSON.stringify(metadata)} -->\n- [ ] ${repository.full_name}`,
-      })
+      await applyTask(taskDir, repository, octokit, context)
     }
   }
 }
 
-const filterTaskFilenames = (files: string[]): string[] => {
-  const seenDir = new Set<string>()
-  return files
-    .filter((file) => file.startsWith('tasks/'))
-    .filter((file) => {
-      const dir = path.dirname(file)
-      if (seenDir.has(dir)) {
-        return false
-      }
-      seenDir.add(dir)
-      return true
-    })
-}
+const parseRepositoriesFile = (repositories: string): string[] => [
+  ...new Set(
+    repositories
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('#')),
+  ),
+]
 
-const processPullRequestReviewComment = async (
-  event: PullRequestReviewCommentEditedEvent,
-  octokit: Octokit,
-  context: Context,
-) => {
-  const metadataMatcher = /<!-- actions-tanpopo-bot (.+?) -->/.exec(event.comment.body)
-  if (!metadataMatcher) {
-    return
-  }
-  const metadata = JSON.parse(metadataMatcher[1]) as unknown
-  assert(typeof metadata === 'object')
-  assert(metadata !== null)
-  assert('repository' in metadata)
-  assert(typeof metadata.repository === 'string')
-
+const applyTask = async (taskDir: string, repository: string, octokit: Octokit, context: Context) => {
   const workflowRunUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-  const taskDir = path.dirname(event.comment.path)
 
   const readme = await fs.readFile(path.join(taskDir, 'README.md'), 'utf-8')
   const taskName = readme.match(/# (.+)/)?.[1]
   assert(taskName, 'README.md must have a title')
-
-  await octokit.rest.pulls.updateReviewComment({
-    owner: event.repository.owner.login,
-    repo: event.repository.name,
-    comment_id: event.comment.id,
-    body: `[GitHub Actions](${workflowRunUrl}) is running the task for ${metadata.repository}`,
-  })
 
   const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
   core.info(`Created a workspace at ${workspace}`)
@@ -130,7 +64,7 @@ const processPullRequestReviewComment = async (
       '-c',
       `http.https://github.com/.extraheader=AUTHORIZATION: basic ${credentials}`,
       '--depth=1',
-      `${context.serverUrl}/${metadata.repository}.git`,
+      `${context.serverUrl}/${repository}.git`,
       '.',
     ],
     { cwd: workspace },
@@ -161,8 +95,9 @@ const processPullRequestReviewComment = async (
     { cwd: workspace },
   )
   const defaultBranch = defaultBranchRef.trim().split('/').pop() ?? 'main'
-  const [owner, repo] = metadata.repository.split('/')
-  const { data: pull } = await octokit.rest.pulls.create({
+  const [owner, repo] = repository.split('/')
+
+  const pull = await createOrUpdatePullRequest(octokit, {
     owner,
     repo,
     title: taskName,
@@ -170,12 +105,40 @@ const processPullRequestReviewComment = async (
     base: defaultBranch,
     body: readme,
   })
-  core.info(`Created ${pull.html_url}`)
 
-  await octokit.rest.pulls.updateReviewComment({
-    owner: event.repository.owner.login,
-    repo: event.repository.name,
-    comment_id: event.comment.id,
-    body: `- ${pull.html_url} created by [GitHub Actions](${workflowRunUrl})`,
+  await octokit.rest.pulls.requestReviewers({
+    owner,
+    repo,
+    pull_number: pull.number,
+    reviewers: [context.actor],
   })
+  core.info(`Requested review from ${context.actor} for pull request: ${pull.html_url}`)
+}
+
+type CreatePullRequest = NonNullable<Awaited<Parameters<Octokit['rest']['pulls']['create']>[0]>>
+
+const createOrUpdatePullRequest = async (octokit: Octokit, pull: CreatePullRequest) => {
+  const { data: existingPulls } = await octokit.pulls.list({
+    owner: pull.owner,
+    repo: pull.repo,
+    state: 'open',
+    head: `${pull.head}`,
+    per_page: 1,
+  })
+  if (existingPulls.length > 0) {
+    const existingPull = existingPulls[0]
+    core.info(`Pull request already exists: ${existingPull.html_url}`)
+    const { data: updatedPull } = await octokit.pulls.update({
+      owner: pull.owner,
+      repo: pull.repo,
+      pull_number: existingPull.number,
+      title: pull.title,
+      body: pull.body,
+    })
+    core.info(`Updated pull request: ${updatedPull.html_url}`)
+    return updatedPull
+  }
+  const { data: createdPull } = await octokit.pulls.create(pull)
+  core.info(`Created pull request: ${createdPull.html_url}`)
+  return createdPull
 }
