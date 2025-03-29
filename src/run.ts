@@ -97,7 +97,7 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
   const defaultBranch = defaultBranchRef.trim().split('/').pop() ?? 'main'
   const [owner, repo] = repository.split('/')
 
-  await createPullRequestIfNotExists(octokit, {
+  await createOrUpdatePullRequest(octokit, {
     owner,
     repo,
     title: taskName,
@@ -109,7 +109,7 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
 
 type CreatePullRequest = NonNullable<Awaited<Parameters<Octokit['rest']['pulls']['create']>[0]>>
 
-const createPullRequestIfNotExists = async (octokit: Octokit, pull: CreatePullRequest) => {
+const createOrUpdatePullRequest = async (octokit: Octokit, pull: CreatePullRequest) => {
   const { data: existingPulls } = await octokit.pulls.list({
     owner: pull.owner,
     repo: pull.repo,
@@ -118,8 +118,17 @@ const createPullRequestIfNotExists = async (octokit: Octokit, pull: CreatePullRe
     per_page: 1,
   })
   if (existingPulls.length > 0) {
-    core.info(`Pull request already exists: ${existingPulls[0].html_url}`)
-    return existingPulls[0]
+    const existingPull = existingPulls[0]
+    core.info(`Pull request already exists: ${existingPull.html_url}`)
+    const { data: updatedPull } = await octokit.pulls.update({
+      owner: pull.owner,
+      repo: pull.repo,
+      pull_number: existingPull.number,
+      title: pull.title,
+      body: pull.body,
+    })
+    core.info(`Updated pull request: ${updatedPull.html_url}`)
+    return updatedPull
   }
   const { data: createdPull } = await octokit.pulls.create(pull)
   core.info(`Created pull request: ${createdPull.html_url}`)
