@@ -2,7 +2,7 @@
 
 int128/workflow-run-summary-action
 # int128/docker-build-metadata-action
-# int128/label-action
+int128/label-action
 # int128/opentelemetry-collector-action
 int128/parallel-test-action
 # int128/assign-pull-request-reviewers-action
