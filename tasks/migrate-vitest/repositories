@@ -15,7 +15,7 @@ int128/rerun-workflows-action
 # int128/wait-for-deployment-action
 # int128/deployment-action
 # int128/list-organization-teams-action
-# int128/wait-for-workflows-action
+int128/wait-for-workflows-action
 # int128/renovate-merge-bot
 # int128/docker-manifest-create-action
 # int128/update-homebrew-formula-action
