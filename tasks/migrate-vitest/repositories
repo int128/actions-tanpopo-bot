@@ -32,7 +32,7 @@ int128/wait-for-workflows-action
 int128/comment-action
 # int128/expand-action
 # int128/hide-comment-action
-# int128/datadog-actions-metrics
+int128/datadog-actions-metrics
 # int128/kustomize-action
 # int128/issues-action
 # int128/update-generated-files-action
