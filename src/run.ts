@@ -122,12 +122,13 @@ const createOrUpdatePullRequest = async (octokit: Octokit, pull: CreatePullReque
     owner: pull.owner,
     repo: pull.repo,
     state: 'open',
-    head: `${pull.head}`,
+    head: `${pull.owner}:${pull.head}`,
     per_page: 1,
   })
   if (existingPulls.length > 0) {
     const existingPull = existingPulls[0]
     core.info(`Pull request already exists: ${existingPull.html_url}`)
+    assert.strictEqual(existingPull.head.ref, pull.head)
     const { data: updatedPull } = await octokit.pulls.update({
       owner: pull.owner,
       repo: pull.repo,
