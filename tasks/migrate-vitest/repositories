@@ -8,7 +8,7 @@ int128/parallel-test-action
 # int128/assign-pull-request-reviewers-action
 # int128/actions-tanpopo-bot
 # int128/bedrock-action
-# int128/trace-workflows-action
+int128/trace-workflows-action
 # int128/kaniko-action
 int128/rerun-workflows-action
 # int128/github-api-rate-limit-metrics-action
