@@ -2,6 +2,7 @@ import assert from 'assert'
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as fs from 'fs/promises'
+import * as git from './git.js'
 import * as path from 'path'
 import { Octokit } from '@octokit/action'
 import { Context, getContext, getOctokit } from './github.js'
@@ -54,25 +55,11 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
   const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
   core.info(`Created a workspace at ${workspace}`)
 
-  const credentials = Buffer.from(`x-access-token:${core.getInput('token')}`).toString('base64')
-  core.setSecret(credentials)
-  await exec.exec(
-    'git',
-    [
-      'clone',
-      '--quiet',
-      '-c',
-      `http.https://github.com/.extraheader=AUTHORIZATION: basic ${credentials}`,
-      '--depth=1',
-      `${context.serverUrl}/${repository}.git`,
-      '.',
-    ],
-    { cwd: workspace },
-  )
+  await git.clone(repository, workspace, context)
 
   await exec.exec('bash', ['-eux', '-o', 'pipefail', `${context.workspace}/${taskDir}/task.sh`], { cwd: workspace })
 
-  const { stdout: gitStatus } = await exec.getExecOutput('git', ['status', '--porcelain'], { cwd: workspace })
+  const gitStatus = await git.status(workspace)
   if (gitStatus === '') {
     return
   }
@@ -83,20 +70,13 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
     cwd: workspace,
   })
   await exec.exec('git', ['rev-parse', 'HEAD'], { cwd: workspace })
-
   const headBranch = `bot--${taskDir.replaceAll(/[^\w]/g, '-')}`
   await exec.exec('git', ['push', '--quiet', '-f', 'origin', `HEAD:${headBranch}`], {
     cwd: workspace,
   })
 
-  const { stdout: defaultBranchRef } = await exec.getExecOutput(
-    'git',
-    ['rev-parse', '--symbolic-full-name', 'origin/HEAD'],
-    { cwd: workspace },
-  )
-  const defaultBranch = defaultBranchRef.trim().split('/').pop() ?? 'main'
+  const defaultBranch = (await git.getDefaultBranch(workspace)) ?? 'main'
   const [owner, repo] = repository.split('/')
-
   const pull = await createOrUpdatePullRequest(octokit, {
     owner,
     repo,
