@@ -26,11 +26,23 @@ const processPullRequest = async (octokit: Octokit, context: Context<PullRequest
   const taskDirs = new Set(files.map((file) => path.dirname(file.filename)).filter((dir) => dir.startsWith('tasks/')))
   core.info(`Found task directories: ${[...taskDirs].join(', ')}`)
 
+  const pullLinks = []
   for (const taskDir of taskDirs) {
     const repositories = parseRepositoriesFile(await fs.readFile(path.join(taskDir, 'repositories'), 'utf-8'))
     for (const repository of repositories) {
-      await applyTask(taskDir, repository, octokit, context)
+      const pull = await applyTask(taskDir, repository, octokit, context)
+      if (pull) {
+        pullLinks.push(`- ${pull.html_url}`)
+      }
     }
+  }
+  if (pullLinks.length > 0) {
+    await octokit.rest.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: context.payload.number,
+      body: pullLinks.join('\n'),
+    })
   }
 }
 
@@ -91,6 +103,7 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
     reviewers: [context.actor],
   })
   core.info(`Requested review from ${context.actor} for pull request: ${pull.html_url}`)
+  return pull
 }
 
 type CreatePullRequest = NonNullable<Awaited<Parameters<Octokit['rest']['pulls']['create']>[0]>>
