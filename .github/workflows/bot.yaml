@@ -9,13 +9,10 @@ on:
       - '*.json'
       - '*.yaml'
       - .github/workflows/bot.yaml
-  pull_request_review_comment:
-    types:
-      - edited
 
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.workflow }}--${{ github.event.pull_request.id }}--${{ github.event.comment.id }}--${{ github.actor }}
+  group: ${{ github.workflow }}--${{ github.event.pull_request.id }}--${{ github.actor }}
 
 jobs:
   run:
