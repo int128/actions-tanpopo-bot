@@ -1,4 +1,4 @@
-# actions-tanpopo-bot [![ts](https://github.com/int128/actions-tanpopo-bot/actions/workflows/ts.yaml/badge.svg)](https://github.com/int128/actions-tanpopo-bot/actions/workflows/ts.yaml)
+# actions-tanpopo [![ts](https://github.com/int128/actions-tanpopo/actions/workflows/ts.yaml/badge.svg)](https://github.com/int128/actions-tanpopo/actions/workflows/ts.yaml)
 
 This is an action of bot to automate routine tasks.
 
@@ -6,7 +6,7 @@ This is an action of bot to automate routine tasks.
 
 ### Create GitHub App
 
-Create your GitHub App from [this link](https://github.com/settings/apps/new?webhook_active=false&url=https://github.com/int128/actions-tanpopo-bot&contents=write&issues=write&pull_requests=write&workflows=write).
+Create your GitHub App from [this link](https://github.com/settings/apps/new?webhook_active=false&url=https://github.com/int128/actions-tanpopo&contents=write&issues=write&pull_requests=write&workflows=write).
 Here are the required permissions:
 
 - Contents: read and write
