@@ -1,4 +1,4 @@
-name: actions-tanpopo-bot
+name: bot
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
       - tests/**
       - '*.json'
       - '*.yaml'
-      - .github/workflows/actions-tanpopo-bot.yaml
+      - .github/workflows/bot.yaml
   pull_request_review_comment:
     types:
       - edited
@@ -30,13 +30,13 @@ jobs:
       - run: pnpm i
       - run: pnpm build
 
-      - uses: actions/create-github-app-token@3ff1caaa28b64c9cc276ce0a02e2ff584f3900c5 # v2.0.2
+      - uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
         id: token
         with:
           app-id: ${{ secrets.BOT_APP_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-      - name: Run int128/actions-tanpopo-bot
+      - name: Run int128/actions-tanpopo
         uses: ./
         with:
           token: ${{ steps.token.outputs.token }}

@@ -6,7 +6,7 @@ int128/label-action
 # int128/opentelemetry-collector-action
 int128/parallel-test-action
 # int128/assign-pull-request-reviewers-action
-# int128/actions-tanpopo-bot
+# int128/actions-tanpopo
 # int128/bedrock-action
 int128/trace-workflows-action
 # int128/kaniko-action
