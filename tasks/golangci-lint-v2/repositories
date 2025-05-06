@@ -4,7 +4,7 @@
 # int128/ktunnels
 # int128/argocd-commenter
 # int128/spot-handler
-# int128/kauthproxy
+int128/kauthproxy
 # int128/cronjob-runner
 # int128/listener
 # int128/oauth2cli
