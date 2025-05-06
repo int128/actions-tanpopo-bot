@@ -7,6 +7,15 @@ import { ContentListUnion, FunctionCall, FunctionDeclaration, GoogleGenAI, Type 
 import { WebhookEvent } from '@octokit/webhooks-types'
 import assert from 'assert'
 
+const systemInstruction = `
+You are an agent for the software development task.
+
+There are the following constraints:
+
+- The current working directory contains the repository to apply the task.
+- Do not dump the environment variables.
+`
+
 export const applyTask = async (taskDir: string, workspace: string, context: Context<WebhookEvent>) => {
   const ai = new GoogleGenAI({ apiKey: process.env.BOT_GEMINI_API_KEY })
   const taskReadme = await fs.readFile(path.join(taskDir, 'README.md'), 'utf-8')
@@ -16,14 +25,9 @@ export const applyTask = async (taskDir: string, workspace: string, context: Con
       parts: [
         {
           text: `
-You are an agent for the software development task.
 Please follow the task instruction.
-
-There are the following constraints:
-
-- The next part of this message contains the task instruction.
-- The task directory is ${context.workspace}/${taskDir}.
-- The current working directory contains the repository to apply the task.
+The next part of this message contains the task instruction.
+The task instruction is located at ${context.workspace}/${taskDir}/README.md.
 `,
         },
         { text: taskReadme },
@@ -32,11 +36,12 @@ There are the following constraints:
   ]
 
   for (;;) {
-    core.info('Calling generateContent...')
+    core.info('🤖 Thinking...')
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash',
       contents,
       config: {
+        systemInstruction: [systemInstruction],
         tools: [{ functionDeclarations: [execFunctionDeclaration] }],
       },
     })
@@ -67,7 +72,7 @@ There are the following constraints:
 }
 
 const execFunctionDeclaration: FunctionDeclaration = {
-  description: 'Run a shell command in the workspace',
+  description: 'Run a shell command in the workspace. Typical Linux commands are available such as grep or awk.',
   name: 'exec',
   parameters: {
     type: Type.OBJECT,
@@ -108,9 +113,14 @@ const execFunctionDeclaration: FunctionDeclaration = {
 const execFunction = async (functionCall: FunctionCall, workspace: string) => {
   assert(functionCall.args)
   const { command, args } = functionCall.args
-  assert(typeof command === 'string')
-  assert(Array.isArray(args))
-  assert(args.every((arg) => typeof arg === 'string'))
+  assert(typeof command === 'string', `command must be a string but got ${typeof command}`)
+  if (args !== undefined) {
+    assert(Array.isArray(args), `args must be an array but got ${typeof args}`)
+    assert(
+      args.every((arg) => typeof arg === 'string'),
+      `args must be strings but got ${args.join()}`,
+    )
+  }
   const { stdout, stderr, exitCode } = await exec.getExecOutput(command, args, {
     cwd: workspace,
     ignoreReturnCode: true,
