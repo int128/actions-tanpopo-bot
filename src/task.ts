@@ -8,8 +8,6 @@ import { WebhookEvent } from '@octokit/webhooks-types'
 import assert from 'assert'
 
 export const applyTask = async (taskDir: string, workspace: string, context: Context<WebhookEvent>) => {
-  await exec.exec('bash', ['-eux', '-o', 'pipefail', `${context.workspace}/${taskDir}/task.sh`], { cwd: workspace })
-
   const ai = new GoogleGenAI({ apiKey: process.env.BOT_GEMINI_API_KEY })
   const taskReadme = await fs.readFile(path.join(taskDir, 'README.md'), 'utf-8')
   const contents: ContentListUnion = [
