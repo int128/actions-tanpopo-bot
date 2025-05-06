@@ -7,12 +7,11 @@ This is the action to automate a routine task for each repository.
 If you have a lot of repositories, you may want to automate a routine task for each repository.
 For example,
 
-- Update dependency versions in configuration files
-- Migrate from one tool to another (e.g., from npm to yarn)
+- Update configuration files
+- Migrate from one tool to another
 - Apply consistent security policies
 - Update documentations
 - Convert file formats
-- Apply organizational best practices
 
 This action handles the repetitive work of updating multiple repositories, similar to "刺身にたんぽぽを乗せる仕事" (placing dandelions on sashimi) in Japanese - a routine yet precise task that benefits from automation.
 
@@ -72,3 +71,5 @@ Create a pull request with the following changes:
 - `tasks/<task-name>/repositories`
   - Write the list of repositories to be updated.
   - Each line should be in the format of `owner/repo`.
+
+This action will perform the task for each repository.
