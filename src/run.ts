@@ -77,27 +77,23 @@ const createOrUpdatePullRequestForTask = async (
   if (gitStatus === '') {
     return
   }
+
+  const baseBranch = (await git.getDefaultBranch(workspace)) ?? 'main'
+  const headBranch = `bot--${taskDir.replaceAll(/[^\w]/g, '-')}`
+  const workflowRunUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
   await exec.exec('git', ['add', '.'], { cwd: workspace })
   await exec.exec('git', ['config', 'user.name', context.actor], { cwd: workspace })
   await exec.exec('git', ['config', 'user.email', `${context.actor}@users.noreply.github.com`], { cwd: workspace })
-  const workflowRunUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-  await exec.exec('git', ['commit', '--quiet', '-m', `Apply ${taskDir}`, '-m', `GitHub Actions: ${workflowRunUrl}`], {
-    cwd: workspace,
-  })
+  await exec.exec('git', ['commit', '--quiet', '-m', taskName, '-m', workflowRunUrl], { cwd: workspace })
   await exec.exec('git', ['rev-parse', 'HEAD'], { cwd: workspace })
-  const headBranch = `bot--${taskDir.replaceAll(/[^\w]/g, '-')}`
-  await exec.exec('git', ['push', '--quiet', '-f', 'origin', `HEAD:${headBranch}`], {
-    cwd: workspace,
-  })
-
-  const defaultBranch = (await git.getDefaultBranch(workspace)) ?? 'main'
+  await exec.exec('git', ['push', '--quiet', '-f', 'origin', `HEAD:${headBranch}`], { cwd: workspace })
   const [owner, repo] = repository.split('/')
   const pull = await createOrUpdatePullRequest(octokit, {
     owner,
     repo,
     title: taskName,
     head: headBranch,
-    base: defaultBranch,
+    base: baseBranch,
     body: readme,
   })
   await octokit.rest.pulls.requestReviewers({
