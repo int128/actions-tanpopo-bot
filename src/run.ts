@@ -62,7 +62,7 @@ const applyTask = async (taskDir: string, repository: string, octokit: Octokit, 
   const taskName = readme.match(/# (.+)/)?.[1]
   assert(taskName, 'README.md must have a title')
 
-  const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-bot-`)
+  const workspace = await fs.mkdtemp(`${context.runnerTemp}/actions-tanpopo-`)
   core.info(`Created a workspace at ${workspace}`)
 
   await git.clone(repository, workspace, context)
