@@ -2,20 +2,20 @@
 
 int128/workflow-run-summary-action
 # int128/docker-build-metadata-action
-# int128/label-action
+int128/label-action
 # int128/opentelemetry-collector-action
 int128/parallel-test-action
 # int128/assign-pull-request-reviewers-action
 # int128/actions-tanpopo
 # int128/bedrock-action
-# int128/trace-workflows-action
+int128/trace-workflows-action
 # int128/kaniko-action
 int128/rerun-workflows-action
 # int128/github-api-rate-limit-metrics-action
 # int128/wait-for-deployment-action
 # int128/deployment-action
 # int128/list-organization-teams-action
-# int128/wait-for-workflows-action
+int128/wait-for-workflows-action
 # int128/renovate-merge-bot
 # int128/docker-manifest-create-action
 # int128/update-homebrew-formula-action
@@ -24,7 +24,7 @@ int128/rerun-workflows-action
 # int128/typescript-action
 # int128/typescript-action-with-graphql-codegen
 # int128/stale-branch-action
-# int128/send-datadog-action
+int128/send-datadog-action
 # int128/deploy-lambda-action
 # int128/delete-deployments-action
 # int128/list-associated-pull-requests-action
@@ -32,7 +32,7 @@ int128/rerun-workflows-action
 int128/comment-action
 # int128/expand-action
 # int128/hide-comment-action
-# int128/datadog-actions-metrics
+int128/datadog-actions-metrics
 # int128/kustomize-action
 # int128/issues-action
 # int128/update-generated-files-action
