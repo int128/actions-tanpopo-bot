@@ -16,8 +16,14 @@ export const applyTask = async (taskDir: string, workspace: string, context: Con
       parts: [
         {
           text: `
-You are an agent for the software development tasks.
-Follow the task instruction of the next part.
+You are an agent for the software development task.
+Please follow the task instruction.
+
+There are the following constraints:
+
+- The next part of this message contains the task instruction.
+- The task directory is ${context.workspace}/${taskDir}.
+- The current working directory contains the repository to apply the task.
 `,
         },
         { text: taskReadme },
@@ -26,18 +32,17 @@ Follow the task instruction of the next part.
   ]
 
   for (;;) {
+    core.info('Calling generateContent...')
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash',
       contents,
       config: {
-        tools: [
-          {
-            functionDeclarations: [execFunctionDeclaration],
-          },
-        ],
+        tools: [{ functionDeclarations: [execFunctionDeclaration] }],
       },
     })
-    core.info(`Response: ${response.text}`)
+    if (response.text) {
+      core.info(response.text)
+    }
     if (response.functionCalls === undefined) {
       break
     }
@@ -92,6 +97,10 @@ const execFunctionDeclaration: FunctionDeclaration = {
         type: Type.STRING,
         description: 'The standard error of the command',
       },
+      exitCode: {
+        type: Type.NUMBER,
+        description: 'The exit code of the command',
+      },
     },
   },
 }
@@ -102,6 +111,9 @@ const execFunction = async (functionCall: FunctionCall, workspace: string) => {
   assert(typeof command === 'string')
   assert(Array.isArray(args))
   assert(args.every((arg) => typeof arg === 'string'))
-  const { stdout, stderr } = await exec.getExecOutput(command, args, { cwd: workspace })
-  return { stdout, stderr }
+  const { stdout, stderr, exitCode } = await exec.getExecOutput(command, args, {
+    cwd: workspace,
+    ignoreReturnCode: true,
+  })
+  return { stdout, stderr, exitCode }
 }
