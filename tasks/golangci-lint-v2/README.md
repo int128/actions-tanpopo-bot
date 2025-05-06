@@ -3,13 +3,13 @@
 ## Goal
 
 Update the linting tool `github.com/golangci/golangci-lint` to v2.
-If go.mod already contains `github.com/golangci/golangci-lint/v2/cmd/golangci-lint`, do not run this task.
+If `go.mod` already contains `github.com/golangci/golangci-lint/v2/cmd/golangci-lint`, do not run this task.
 
 ## Steps
 
 ### 1. Update the dependencies
 
-Run `update.sh` in the task directory using `bash` to update the version to v2.
+Run `update.sh` in the task directory to update the version to v2.
 
 If there is `Makefile` and it contains `github.com/golangci/golangci-lint/cmd/golangci-lint`, run the following command to update it to v2:
 
