@@ -28,7 +28,8 @@ export const applyTask = async (taskDir: string, workspace: string, context: Con
           text: `
 Please follow the task instruction.
 The next part of this message contains the task instruction.
-The task directory is located at ${context.workspace}/${taskDir}.
+
+If the task definition refers a script, try to find it from the task directory at ${context.workspace}/${taskDir}.
 `,
         },
         { text: taskReadme },
