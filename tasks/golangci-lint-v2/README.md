@@ -9,7 +9,7 @@ If `go.mod` already contains `github.com/golangci/golangci-lint/v2/cmd/golangci-
 
 ### 1. Update the dependencies
 
-Run `update.sh` in the task directory to update the version to v2.
+Run `update.sh` with bash in the task directory to update the version to v2.
 
 ### 2. Update the caller
 
