@@ -13,7 +13,7 @@ You are an agent for the software development task.
 There are the following constraints:
 
 - The current working directory contains the repository to apply the task.
-- If any command fails, stop the task and return the error.
+- If any command failed, stop the task and return a message with the prefix of "ERROR:".
 - Do not dump the environment variables.
 `
 
@@ -44,38 +44,11 @@ The task directory is located at ${context.workspace}/${taskDir}.
       config: {
         systemInstruction: [systemInstruction],
         tools: [{ functionDeclarations: [execFunctionDeclaration] }],
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            message: {
-              type: Type.STRING,
-              description: 'The message to send to the user',
-            },
-            failure: {
-              type: Type.BOOLEAN,
-              description: 'Whether the task failed',
-            },
-          },
-        },
       },
     })
-    const responseObject: unknown = JSON.parse(response.text ?? '{}')
-    assert(typeof responseObject === 'object', `responseObject must be an object but got ${typeof responseObject}`)
-    assert(responseObject !== null, 'responseObject must not be null')
-    assert('message' in responseObject, 'responseObject must have a message property')
-    assert(
-      typeof responseObject.message === 'string',
-      `message must be a string but got ${typeof responseObject.message}`,
-    )
-    assert('failure' in responseObject, 'responseObject must have a failure property')
-    assert(
-      typeof responseObject.failure === 'boolean',
-      `failure must be a boolean but got ${typeof responseObject.failure}`,
-    )
-    core.info(`Response: ${responseObject.message}`)
-    if (responseObject.failure) {
-      throw new Error(`Task failed: ${responseObject.message}`)
+    core.info(`Response: ${response.text}`)
+    if (response.text?.startsWith('ERROR:')) {
+      throw new Error(response.text)
     }
     if (response.functionCalls === undefined) {
       break
@@ -133,7 +106,7 @@ const execFunctionDeclaration: FunctionDeclaration = {
       },
       exitCode: {
         type: Type.NUMBER,
-        description: 'The exit code of the command',
+        description: 'The exit code of the command. 0 means success, non-zero means failure',
       },
     },
   },
