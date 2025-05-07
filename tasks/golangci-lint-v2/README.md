@@ -11,16 +11,21 @@ If `go.mod` already contains `github.com/golangci/golangci-lint/v2/cmd/golangci-
 
 Run `update.sh` in the task directory to update the version to v2.
 
-If there is `Makefile`, run the following command to update it to v2:
+### 2. Update the caller
+
+If Makefile exists, run the following command to update it to v2:
 
 ```bash
 sed -i -e 's|github.com/golangci/golangci-lint/cmd/golangci-lint|github.com/golangci/golangci-lint/v2/cmd/golangci-lint|g' Makefile
 ```
 
-### 2. Check if the lint is passing
+### 3. Fix the lint errors
 
 Run the following command to check if the lint is passing:
 
 ```bash
 go tool golangci-lint run
 ```
+
+If a lint error is returned, try to fix the code.
+After the fix, check again if the lint is passing.
