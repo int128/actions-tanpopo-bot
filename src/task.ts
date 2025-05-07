@@ -13,6 +13,7 @@ You are an agent for the software development task.
 There are the following constraints:
 
 - The current working directory contains the repository to apply the task.
+- Use bash by default.
 - If any command failed, stop the task and return a message with the prefix of "ERROR:".
 - Do not dump the environment variables.
 `
