@@ -48,7 +48,10 @@ The next part of this message contains the task instruction.
       }
       core.info(`🤖: ${text}`)
     }
-    for (const functionCall of response.functionCalls ?? []) {
+    if (response.functionCalls === undefined) {
+      break
+    }
+    for (const functionCall of response.functionCalls) {
       if (functionCall.name === execFunctionDeclaration.name) {
         contents.push({ role: 'model', parts: [{ functionCall }] })
         contents.push({
