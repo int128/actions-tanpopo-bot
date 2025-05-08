@@ -8,33 +8,26 @@ import { WebhookEvent } from '@octokit/webhooks-types'
 import assert from 'assert'
 
 const systemInstruction = `
-You are an agent for the software development task.
-
-There are the following constraints:
-
-- The current working directory contains the repository to apply the task.
-- If running a shell script, use bash by default.
-- If any command failed, stop the task and return a message with the prefix of "ERROR:".
-- Do not dump the environment variables.
+You are a software engineer.
+If any command failed, stop the task and return a message with the prefix of "ERROR:".
 `
 
 export const applyTask = async (taskDir: string, workspace: string, context: Context<WebhookEvent>) => {
   const ai = new GoogleGenAI({ apiKey: process.env.BOT_GEMINI_API_KEY })
+
+  const prompt = `
+Follow the task instruction.
+The next part of this message contains the task instruction.
+
+- The current working directory contains the code to be modified.
+- The task instruction is at ${context.workspace}/${taskDir}/README.md.
+`
+
   const taskReadme = await fs.readFile(path.join(taskDir, 'README.md'), 'utf-8')
   const contents: ContentListUnion = [
     {
       role: 'user',
-      parts: [
-        {
-          text: `
-Please follow the task instruction.
-The next part of this message contains the task instruction.
-
-If the task definition refers a script, try to find it from the task directory at ${context.workspace}/${taskDir}.
-`,
-        },
-        { text: taskReadme },
-      ],
+      parts: [{ text: prompt }, { text: taskReadme }],
     },
   ]
 
@@ -48,14 +41,14 @@ If the task definition refers a script, try to find it from the task directory a
         tools: [{ functionDeclarations: [execFunctionDeclaration] }],
       },
     })
-    core.info(`Response: ${response.text}`)
-    if (response.text?.startsWith('ERROR:')) {
-      throw new Error(response.text)
+    const text = response.candidates?.flatMap((c) => c.content?.parts?.map((part) => part.text ?? '')).join('')
+    if (text !== undefined) {
+      if (text.startsWith('ERROR:')) {
+        throw new Error(response.text)
+      }
+      core.info(`🤖: ${text}`)
     }
-    if (response.functionCalls === undefined) {
-      break
-    }
-    for (const functionCall of response.functionCalls) {
+    for (const functionCall of response.functionCalls ?? []) {
       if (functionCall.name === execFunctionDeclaration.name) {
         contents.push({ role: 'model', parts: [{ functionCall }] })
         contents.push({

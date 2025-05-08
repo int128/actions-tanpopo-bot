@@ -3,17 +3,22 @@
 ## Goal
 
 Update the linting tool `github.com/golangci/golangci-lint` to v2.
-If `go.mod` already contains `github.com/golangci/golangci-lint/v2/cmd/golangci-lint`, do not run this task.
 
 ## Steps
 
-### 1. Update the dependencies
+### 1. Update go.mod
 
-Run `update.sh` with bash in the task directory to update the version to v2.
+Run the following command to update `go.mod`:
 
-### 2. Update the caller
+```bash
+go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+go mod edit -droptool=github.com/golangci/golangci-lint/cmd/golangci-lint
+go mod tidy
+```
 
-If Makefile exists, run the following command to update it to v2:
+### 2. Update Makefile
+
+If `Makefile` exists, run the following command to update it to v2:
 
 ```bash
 sed -i -e 's|github.com/golangci/golangci-lint/cmd/golangci-lint|github.com/golangci/golangci-lint/v2/cmd/golangci-lint|g' Makefile
@@ -29,3 +34,23 @@ go tool golangci-lint run
 
 If a lint error is returned, try to fix the code.
 After the fix, check again if the lint is passing.
+
+#### errcheck
+
+If you got an error of `errcheck` like this:
+
+```
+example.go:1:1: Error return value of `f.Close` is not checked (errcheck)
+	defer f.Close()
+```
+
+You need to check the error returned by `f.Close()` and log it.
+For example, if you have the following code:
+
+```go
+defer func() {
+    if err := f.Close(); err != nil {
+        slog.Error("Failed to close the file", "error", err)
+    }
+}()
+```
