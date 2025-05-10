@@ -3,7 +3,7 @@ import * as exec from '@actions/exec'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { Context } from './github.js'
-import { ContentListUnion, FunctionCall, FunctionDeclaration, GoogleGenAI, Type } from '@google/genai'
+import { ContentListUnion, FunctionCall, FunctionDeclaration, FunctionResponse, GoogleGenAI, Type } from '@google/genai'
 import { WebhookEvent } from '@octokit/webhooks-types'
 import assert from 'assert'
 
@@ -20,7 +20,7 @@ Follow the task instruction.
 The next part of this message contains the task instruction.
 
 - The current working directory contains the code to be modified.
-- The task instruction is at ${context.workspace}/${taskDir}/README.md.
+- The task instruction is located at ${context.workspace}/${taskDir}/README.md.
 `
 
   const taskReadme = await fs.readFile(path.join(taskDir, 'README.md'), 'utf-8')
@@ -41,38 +41,27 @@ The next part of this message contains the task instruction.
         tools: [{ functionDeclarations: [execFunctionDeclaration] }],
       },
     })
-    const text = response.candidates?.flatMap((c) => c.content?.parts?.map((part) => part.text ?? '')).join('')
-    if (text !== undefined) {
-      if (text.startsWith('ERROR:')) {
+    if (response.functionCalls) {
+      for (const functionCall of response.functionCalls) {
+        if (functionCall.name === execFunctionDeclaration.name) {
+          contents.push({ role: 'model', parts: [{ functionCall }] })
+          contents.push({ role: 'user', parts: [{ functionResponse: await execFunction(functionCall, workspace) }] })
+        }
+      }
+    } else if (response.text) {
+      core.info(`🤖: ${response.text}`)
+      if (response.text.startsWith('ERROR:')) {
         throw new Error(response.text)
       }
-      core.info(`🤖: ${text}`)
-    }
-    if (response.functionCalls === undefined) {
-      break
-    }
-    for (const functionCall of response.functionCalls) {
-      if (functionCall.name === execFunctionDeclaration.name) {
-        contents.push({ role: 'model', parts: [{ functionCall }] })
-        contents.push({
-          role: 'user',
-          parts: [
-            {
-              functionResponse: {
-                id: functionCall.id,
-                name: functionCall.name,
-                response: await execFunction(functionCall, workspace),
-              },
-            },
-          ],
-        })
-      }
+      return
+    } else {
+      throw new Error(`no content from the model: ${response.promptFeedback?.blockReasonMessage}`)
     }
   }
 }
 
 const execFunctionDeclaration: FunctionDeclaration = {
-  description: 'Run a shell command in the workspace. Typical Linux commands are available such as grep or awk.',
+  description: `Run a shell command in the workspace. Typical Linux commands are available, such as grep or sed.`,
   name: 'exec',
   parameters: {
     type: Type.OBJECT,
@@ -110,7 +99,7 @@ const execFunctionDeclaration: FunctionDeclaration = {
   },
 }
 
-const execFunction = async (functionCall: FunctionCall, workspace: string) => {
+const execFunction = async (functionCall: FunctionCall, workspace: string): Promise<FunctionResponse> => {
   assert(functionCall.args)
   const { command, args } = functionCall.args
   assert(typeof command === 'string', `command must be a string but got ${typeof command}`)
@@ -125,5 +114,13 @@ const execFunction = async (functionCall: FunctionCall, workspace: string) => {
     cwd: workspace,
     ignoreReturnCode: true,
   })
-  return { stdout, stderr, exitCode }
+  return {
+    id: functionCall.id,
+    name: functionCall.name,
+    response: {
+      stdout,
+      stderr,
+      exitCode,
+    },
+  }
 }
