@@ -4,6 +4,7 @@ import * as exec from '@actions/exec'
 import * as fs from 'fs/promises'
 import * as git from './git.js'
 import * as path from 'path'
+import { applyTask } from './task.js'
 import { Octokit } from '@octokit/action'
 import { Context, contextIsPullRequestEvent } from './github.js'
 import { PullRequestEvent, WebhookEvent } from '@octokit/webhooks-types'
@@ -104,10 +105,6 @@ const createOrUpdatePullRequestForTask = async (
   })
   core.info(`Requested review from ${context.actor} for pull request: ${pull.html_url}`)
   return pull
-}
-
-const applyTask = async (taskDir: string, workspace: string, context: Context<WebhookEvent>) => {
-  await exec.exec('bash', ['-eux', '-o', 'pipefail', `${context.workspace}/${taskDir}/task.sh`], { cwd: workspace })
 }
 
 type CreatePullRequest = NonNullable<Awaited<Parameters<Octokit['rest']['pulls']['create']>[0]>>

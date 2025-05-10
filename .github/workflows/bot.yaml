@@ -37,3 +37,5 @@ jobs:
         uses: ./
         with:
           token: ${{ steps.token.outputs.token }}
+        env:
+          BOT_GEMINI_API_KEY: ${{ secrets.BOT_GEMINI_API_KEY }}
