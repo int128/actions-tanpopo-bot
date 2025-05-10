@@ -35,17 +35,8 @@ go tool golangci-lint run
 If a lint error is returned, try to fix the code.
 After the fix, check again if the lint is passing.
 
-#### errcheck
-
-If you got an error of `errcheck` like this:
-
-```
-example.go:1:1: Error return value of `f.Close` is not checked (errcheck)
-	defer f.Close()
-```
-
-You need to check the error returned by `f.Close()` and log it.
-For example, if you have the following code:
+If you got an error of `errcheck`, fix it to check the error and log it.
+Here is an example of how to check the error and log it:
 
 ```go
 defer func() {
